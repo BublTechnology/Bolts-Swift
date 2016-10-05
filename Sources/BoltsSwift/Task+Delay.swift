@@ -21,11 +21,19 @@ extension Task {
 
      - returns: A task that will complete after the given delay.
      */
-    public class func withDelay(_ delay: TimeInterval) -> Task<Void> {
+    public class func withDelay(_ delay: TimeInterval, cancellationToken: CancellationToken) -> Task<Void> {
+        if (cancellationToken.cancellationRequested()) {
+            return Task<Void>(state: .cancelled)
+        }
+        
         let taskCompletionSource = TaskCompletionSource<Void>()
         let time = DispatchTime.now() + delay
         DispatchQueue.global(qos: .default).asyncAfter(deadline: time) {
-            taskCompletionSource.trySet(result: ())
+            if (cancellationToken.cancellationRequested()) {
+                taskCompletionSource.tryCancel()
+            } else {
+                taskCompletionSource.trySet(result: ())
+            }
         }
         return taskCompletionSource.task
     }
